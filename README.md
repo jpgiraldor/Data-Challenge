@@ -12,3 +12,7 @@ You will also find 2 SQL files that are the queries that were needed for the cha
 There are also some visualizations using Looker Studio.
 
 For cost purposes all the cloud services will be turned off but if you wish to see them in action, let me know and I will turn them on.
+
+To run the container you can use the following docker commands
+- docker build -t challenge .
+- docker run -p 5000:5000 challenge
