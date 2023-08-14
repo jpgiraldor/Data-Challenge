@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify
 import pandas as pd
 import psycopg2
-from sqlalchemy import create_engine
+from psycopg2.extras import execute_values
 
 app = Flask(__name__)
 
@@ -13,50 +13,62 @@ db_config = {
     "user": "postgres",
     "password": "12345678"
 }
-connection = psycopg2.connect(
-    host=db_config["host"],
-    port=db_config["port"],
-    dbname=db_config["database"],
-    user=db_config["user"],
-    password=db_config["password"]
-)
 
 @app.route('/upload', methods=['POST'])
 def upload_csv():
+    try:
+        # Get uploaded file
+        file = request.files['file']
 
-    print(1)
-    # Get uploaded file
-    file = request.files['file']
-    #print(file)
+        # Get the table name from the filename (excluding extension)
+        filename = file.filename
+        table_name = filename.split('.')[0]  # Assumes filename has one dot and no path
 
-    # Get the table name from the filename (excluding extension)
-    filename = file.filename
-    table_name = filename.split('.')[0]  # Assumes filename has one dot and no path
+        # Read CSV file using pandas
+        df = pd.read_csv(file, header=None, keep_default_na=False, na_values=None)
 
-    # Read CSV file using pandas
-    df = pd.read_csv(file)
-    #print(df.head)
-    # Connect to PostgreSQL database
+        # Connect to PostgreSQL database
+        connection = psycopg2.connect(
+            host=db_config["host"],
+            port=db_config["port"],
+            dbname=db_config["database"],
+            user=db_config["user"],
+            password=db_config["password"]
+        )
 
+        # Create a cursor
+        cursor = connection.cursor()
 
-    # Create a cursor
-    cursor = connection.cursor()
+        success_count = 0
+        failed_lines = []
 
-    # Loop through rows and insert into PostgreSQL
-    for index, row in df.iterrows():
-        query = f"INSERT INTO {table_name}  VALUES ({'%s, '*row.size})"
-        query = query[:-3]+')'
-        print(query)
-        values = tuple(row)  # Assuming your CSV columns match the table columns
-        cursor.execute(query, values)
+        # Convert DataFrame to list of tuples
+        data_values = [tuple(row) for _, row in df.iterrows()]
 
-    connection.commit()
-    cursor.close()
-    connection.close()
+        # Build the bulk insert query
+        insert_query = f"INSERT INTO {table_name} VALUES %s"
 
-    return jsonify({"message": f"CSV data uploaded and stored in table {table_name}."})
+        # Execute bulk insert
+        for i, values in enumerate(data_values):
+            try:
+                # Convert empty strings to None for integer columns
+                converted_values = [v if v != '' else None for v in values]
+                execute_values(cursor, insert_query, [converted_values])
+                success_count += 1
+            except Exception as e:
+                failed_lines.append({"line_number": i + 1, "error": str(e)})
 
+        connection.commit()
+        cursor.close()
+        connection.close()
 
+        return jsonify({
+            "message": f"{success_count} rows inserted successfully.",
+            "failed_lines": failed_lines
+        })
+
+    except Exception as e:
+        return jsonify({"error": str(e)})
 
 if __name__ == '__main__':
     app.run(debug=True)
