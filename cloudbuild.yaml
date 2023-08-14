@@ -1,9 +1,9 @@
 steps:
 - name: 'gcr.io/cloud-builders/docker'
-  args: [ 'build', '-t', 'us-central1-docker.pkg.dev/skilful-scarab-310105/challenge', '.' ]
+  args: [ 'build', '-t', 'us-central1-docker.pkg.dev/skilful-scarab-310105/challenge/data', '.' ]
 
 steps:
 - name: 'gcr.io/cloud-builders/docker'
-  args: ['build', '-t', 'us-central1-docker.pkg.dev/skilful-scarab-310105/challenge', '.']
+  args: ['build', '-t', 'us-central1-docker.pkg.dev/skilful-scarab-310105/challenge/data', '.']
 - name: 'gcr.io/cloud-builders/docker'
-  args: ['push', 'us-central1-docker.pkg.dev/skilful-scarab-310105/challenge']
+  args: ['push', 'us-central1-docker.pkg.dev/skilful-scarab-310105/challenge/data']
